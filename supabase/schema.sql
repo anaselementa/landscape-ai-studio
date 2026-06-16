@@ -1,5 +1,5 @@
 -- Landscape AI Studio V0.1
--- À exécuter dans Supabase SQL Editor.
+-- Execute this file in the Supabase SQL editor.
 
 create extension if not exists pgcrypto;
 
@@ -10,10 +10,9 @@ create table if not exists public.projects (
   location text,
   style text,
   constraints text,
-  budget_level text,
-  status text default 'draft',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  status text not null default 'draft',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.site_images (
@@ -25,43 +24,80 @@ create table if not exists public.site_images (
   public_url text not null,
   mime_type text,
   file_size bigint,
-  created_at timestamptz default now()
+  created_at timestamptz not null default now()
 );
 
-create table if not exists public.image_analyses (
+create table if not exists public.analyses (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects(id) on delete cascade,
-  site_image_id uuid not null references public.site_images(id) on delete cascade,
-  analysis_json jsonb not null,
   summary text,
-  created_at timestamptz default now()
+  analysis_json jsonb not null,
+  created_at timestamptz not null default now()
 );
 
-create table if not exists public.design_ideas (
+create table if not exists public.swots (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects(id) on delete cascade,
-  site_image_id uuid not null references public.site_images(id) on delete cascade,
+  analysis_id uuid references public.analyses(id) on delete set null,
+  strengths jsonb not null default '[]'::jsonb,
+  weaknesses jsonb not null default '[]'::jsonb,
+  opportunities jsonb not null default '[]'::jsonb,
+  threats jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.ideas (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  analysis_id uuid references public.analyses(id) on delete set null,
   title text not null,
   description text,
   intervention_level text,
-  materials jsonb default '[]'::jsonb,
-  plants jsonb default '[]'::jsonb,
-  furniture jsonb default '[]'::jsonb,
-  lighting jsonb default '[]'::jsonb,
+  materials jsonb not null default '[]'::jsonb,
+  plants jsonb not null default '[]'::jsonb,
+  furniture jsonb not null default '[]'::jsonb,
+  lighting jsonb not null default '[]'::jsonb,
   cost_level text,
   maintenance_level text,
-  status text default 'suggested',
-  created_at timestamptz default now()
+  status text not null default 'suggested',
+  created_at timestamptz not null default now()
 );
 
--- Bucket public simplifié pour MVP.
--- Plus tard, il faudra passer en bucket privé + signed URLs.
+create index if not exists site_images_project_id_idx on public.site_images(project_id);
+create index if not exists analyses_project_id_created_at_idx on public.analyses(project_id, created_at desc);
+create index if not exists swots_project_id_created_at_idx on public.swots(project_id, created_at desc);
+create index if not exists ideas_project_id_created_at_idx on public.ideas(project_id, created_at desc);
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists projects_set_updated_at on public.projects;
+create trigger projects_set_updated_at
+before update on public.projects
+for each row execute function public.set_updated_at();
+
 insert into storage.buckets (id, name, public)
 values ('site-images', 'site-images', true)
-on conflict (id) do nothing;
+on conflict (id) do update set public = excluded.public;
 
--- Politique simplifiée pour permettre l'affichage public des images du prototype.
--- Le code serveur utilise la service role key pour uploader.
-create policy if not exists "Public read site images"
-on storage.objects for select
-using (bucket_id = 'site-images');
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'Public read site images'
+  ) then
+    create policy "Public read site images"
+    on storage.objects for select
+    using (bucket_id = 'site-images');
+  end if;
+end $$;
