@@ -1,17 +1,15 @@
-import "./globals.css";
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Landscape AI Studio",
-  description: "Studio IA pour projets de paysage, analyses, SWOT et idees d'amenagement."
+  description: "Assistant IA de conception paysagere pour architectes de paysage"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <body>
-        <main className="mx-auto min-h-screen max-w-7xl px-5 py-6 sm:px-8 sm:py-8">{children}</main>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
