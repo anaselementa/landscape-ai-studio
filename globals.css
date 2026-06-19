@@ -1,0 +1,100 @@
+import { NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { demoIdeas, generateJsonWithOpenAI } from "@/lib/ai";
+
+export const runtime = "nodejs";
+
+type Params = { id: string };
+
+export async function POST(_request: Request, { params }: { params: Promise<Params> }) {
+  try {
+    const { id } = await params;
+    const supabase = getSupabaseAdmin();
+    const [{ data: project }, { data: analyses }, { data: swots }, { data: refs }] = await Promise.all([
+      supabase.from("projects").select("*").eq("id", id).single(),
+      supabase.from("analyses").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1),
+      supabase.from("swots").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1),
+      supabase.from("project_references").select("*").eq("project_id", id).order("created_at", { ascending: false })
+    ]);
+    const analysis = analyses?.[0];
+    if (!project || !analysis) return NextResponse.json({ error: "Analyse introuvable." }, { status: 400 });
+
+    const fallback = demoIdeas();
+    const { data, usedDemo, error } = await generateJsonWithOpenAI({
+      system: "Tu es architecte de paysage senior. Tu proposes des concepts différenciés, construisibles, adaptés au climat et directement reliés aux photos. JSON strict uniquement.",
+      user: `
+Projet : ${project.name}
+Localisation : ${project.location}
+Style : ${project.style}
+Contraintes : ${project.constraints}
+Analyse : ${JSON.stringify(analysis.analysis_json)}
+SWOT : ${JSON.stringify(swots?.[0] || {})}
+Références : ${JSON.stringify(refs || [])}
+
+Retourne uniquement :
+{
+  "ideas": [
+    {
+      "title": "titre court",
+      "description": "concept clair en 3-5 lignes",
+      "intervention_level": "léger | moyen | fort",
+      "target_spaces": ["espaces concernés"],
+      "priority_actions": ["actions concrètes"],
+      "materials": ["matériaux"],
+      "plants": ["végétaux adaptés au climat"],
+      "furniture": ["mobilier ou équipements"],
+      "lighting": ["stratégie lumière"],
+      "cost_level": "maîtrisé | moyen | élevé",
+      "maintenance_level": "faible | moyen | élevé",
+      "why_for_this_site": "pourquoi cette idée convient aux photos et au brief",
+      "risks": ["risques ou points d'attention"]
+    }
+  ]
+}
+
+Contraintes fortes :
+- Donne exactement 3 idées très différenciées :
+  1) intervention conservatrice / respect de l'existant,
+  2) transformation premium centrée sur l'usage,
+  3) solution sobre faible entretien / faible eau.
+- Chaque idée doit citer les espaces concernés : entrée, piscine, terrasse, passage, jardin latéral si pertinents.
+- Évite les idées vagues. Chaque proposition doit être applicable par un architecte paysagiste.
+- Ne propose pas de tout démolir.
+`,
+      fallback
+    });
+
+    const ideas = ((data as any).ideas || fallback.ideas).slice(0, 3);
+    await supabase.from("ideas").delete().eq("project_id", id);
+    await supabase.from("projects").update({ selected_idea_id: null }).eq("id", id);
+    const rows = ideas.map((idea: any) => ({
+      project_id: id,
+      analysis_id: analysis.id,
+      title: idea.title,
+      description: idea.description,
+      intervention_level: idea.intervention_level,
+      target_spaces: idea.target_spaces || [],
+      priority_actions: idea.priority_actions || [],
+      materials: idea.materials || [],
+      plants: idea.plants || [],
+      furniture: idea.furniture || [],
+      lighting: idea.lighting || [],
+      cost_level: idea.cost_level,
+      maintenance_level: idea.maintenance_level,
+      why_for_this_site: idea.why_for_this_site,
+      risks: idea.risks || [],
+      selected: false,
+      status: "suggested",
+      is_demo: usedDemo,
+      demo_reason: error || null
+    }));
+    const { data: inserted, error: insertError } = await supabase.from("ideas").insert(rows).select("*");
+    if (insertError) throw insertError;
+
+    await supabase.from("projects").update({ status: "ideas_ready", updated_at: new Date().toISOString() }).eq("id", id);
+    return NextResponse.json({ ideas: inserted, usedDemo, openaiError: error || null });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur idees.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

@@ -1,14 +1,15 @@
-import type { NextConfig } from "next";
+import type { Metadata } from "next";
+import "./globals.css";
 
-const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "*.supabase.co"
-      }
-    ]
-  }
+export const metadata: Metadata = {
+  title: "Landscape AI Studio",
+  description: "Assistant IA de conception paysagere pour architectes de paysage"
 };
 
-export default nextConfig;
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="fr">
+      <body>{children}</body>
+    </html>
+  );
+}
