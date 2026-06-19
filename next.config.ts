@@ -1,15 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { NextConfig } from "next";
 
-export const metadata: Metadata = {
-  title: "Landscape AI Studio",
-  description: "Assistant IA de conception paysagere pour architectes de paysage"
+const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: false
+  }
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="fr">
-      <body>{children}</body>
-    </html>
-  );
-}
+export default nextConfig;
