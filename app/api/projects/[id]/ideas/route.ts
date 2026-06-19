@@ -22,12 +22,22 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let parsedIdeas: DesignIdea[];
     let demoReason: string | null = null;
     try {
-      const prompt = `Genere exactement 3 concepts d'amenagement differencies pour un jardin de villa.
+      const prompt = `Genere exactement 3 idees d'amenagement vraiment differentes pour ce jardin de villa:
+1 idee "light" intervention legere,
+1 idee "medium" intervention moyenne,
+1 idee "strong" intervention forte.
+
+Utilise explicitement les noms d'espaces detectes dans l'analyse photo par photo: entree, jardin piscine, sortie/passage, terrasse, masses vegetales, ou les noms equivalents trouves.
 Chaque idee doit etre actionnable et utilisable pour guider un benchmark visuel puis un plan.
 Projet: ${JSON.stringify(project)}
 Analyse: ${JSON.stringify(analysis.analysis_json)}
 SWOT: ${JSON.stringify(swot || {})}
-Retourne uniquement JSON {"ideas":[{"title":"","description":"","intervention_level":"light|medium|strong","concept_keywords":[""],"materials":[""],"plants":[""],"furniture":[""],"lighting":[""],"cost_level":"","maintenance_level":""}]}.`;
+Retourne uniquement JSON {"ideas":[{"title":"","description":"","intervention_level":"light|medium|strong","spaces_concerned":[""],"spatial_moves":[""],"concept_keywords":[""],"materials":[""],"plants":[""],"furniture":[""],"lighting":[""],"cost_level":"","maintenance_level":"","preserved_elements":[""],"transformed_elements":[""]}]}.
+
+Contraintes:
+- les trois intervention_level doivent etre exactement light, medium, strong;
+- precise ce qui est conserve et ce qui est transforme;
+- cite les espaces concernes avec les memes noms que dans l'analyse.`;
       const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
       parsedIdeas = parseJsonResponse<{ ideas: DesignIdea[] }>(response.output_text).ideas || [];
     } catch (openAiError) {
@@ -42,6 +52,8 @@ Retourne uniquement JSON {"ideas":[{"title":"","description":"","intervention_le
       title: idea.title,
       description: idea.description,
       intervention_level: idea.intervention_level,
+      spaces_concerned: asStringArray(idea.spaces_concerned),
+      spatial_moves: asStringArray(idea.spatial_moves),
       concept_keywords: asStringArray(idea.concept_keywords),
       materials: asStringArray(idea.materials),
       plants: asStringArray(idea.plants),
@@ -49,6 +61,8 @@ Retourne uniquement JSON {"ideas":[{"title":"","description":"","intervention_le
       lighting: asStringArray(idea.lighting),
       cost_level: idea.cost_level,
       maintenance_level: idea.maintenance_level,
+      preserved_elements: asStringArray(idea.preserved_elements),
+      transformed_elements: asStringArray(idea.transformed_elements),
       status: "suggested",
       selected: false,
       is_demo: Boolean(demoReason),

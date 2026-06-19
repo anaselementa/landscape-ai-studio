@@ -21,9 +21,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let swot: SwotPayload;
     let demoReason: string | null = null;
     try {
-      const prompt = `Genere un SWOT paysager decisionnel, concret et priorise.
+      const prompt = `Genere un SWOT paysager decisionnel, concret et priorise pour un architecte paysagiste.
 Projet: ${project.name}
 Analyse: ${JSON.stringify(analysis.analysis_json)}
+
+Regles strictes:
+- Interdiction des menaces generiques comme "concurrence d'autres projets", "marche", "budget client" ou "tendances".
+- Les faiblesses doivent etre directement liees aux photos, aux espaces detectes et a l'etat visible du site.
+- Les menaces doivent concerner uniquement: climat, arrosage, entretien, ombrage, materiaux, contraintes d'execution, vieillissement de l'existant.
+- Chaque point doit etre operationnel et utile pour arbitrer un amenagement.
+
 Retourne uniquement JSON {"strengths":[""],"weaknesses":[""],"opportunities":[""],"threats":[""]}.`;
       const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
       const parsed = parseJsonResponse<SwotPayload>(response.output_text);

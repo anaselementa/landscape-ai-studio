@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BenchmarkCard } from "@/components/benchmark-card";
 import { ProjectAiActions } from "@/components/project-ai-actions";
 import { SelectIdeaButton } from "@/components/select-idea-button";
 import { UploadPhotosForm } from "@/components/upload-photos-form";
@@ -101,6 +102,24 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <DetailList title="Opportunites" items={latestAnalysis.analysis_json.opportunities} />
               <DetailList title="Contraintes a respecter" items={latestAnalysis.analysis_json.constraints_to_respect} />
               <p className="text-sm leading-6 text-[#5f675f]"><span className="font-semibold text-[#17211b]">Direction :</span> {latestAnalysis.analysis_json.design_direction}</p>
+              <div>
+                <h3 className="font-semibold">Analyse par photo</h3>
+                <div className="mt-3 grid gap-3">
+                  {(latestAnalysis.analysis_json.photo_analyses || []).map((photo, index) => (
+                    <div className="rounded-md border border-[#ded8cc] bg-[#fffefa] p-4" key={`${photo.photo_id || photo.probable_space}-${index}`}>
+                      <p className="text-sm font-bold text-[#315f43]">{photo.probable_space}</p>
+                      <div className="mt-3 grid gap-3 text-sm leading-6 text-[#5f675f] md:grid-cols-2">
+                        <CompactList title="Elements visibles" items={photo.visible_existing_elements} />
+                        <CompactList title="Materiaux" items={photo.visible_materials} />
+                        <CompactList title="Vegetation" items={photo.visible_vegetation} />
+                        <CompactList title="Usages possibles" items={photo.possible_uses} />
+                        <CompactList title="Problemes" items={photo.problems} />
+                        <CompactList title="Interventions" items={photo.recommended_interventions} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : <EmptyState text="Lance l'analyse pour produire le diagnostic structure." />}
         </article>
@@ -130,9 +149,18 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                 </div>
                 <h3 className="mt-4 text-xl font-semibold">{idea.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-[#5f675f]">{idea.description}</p>
+                <DetailLine label="Espaces" values={idea.spaces_concerned} />
+                <DetailLine label="Gestes spatiaux" values={idea.spatial_moves} />
                 <DetailLine label="Mots-cles" values={idea.concept_keywords} />
                 <DetailLine label="Materiaux" values={idea.materials} />
                 <DetailLine label="Vegetal" values={idea.plants} />
+                <DetailLine label="Mobilier" values={idea.furniture} />
+                <DetailLine label="Eclairage" values={idea.lighting} />
+                <DetailLine label="Conserve" values={idea.preserved_elements} />
+                <DetailLine label="Transforme" values={idea.transformed_elements} />
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                  Cout: {idea.cost_level || "a preciser"} - Entretien: {idea.maintenance_level || "a preciser"}
+                </p>
               </article>
             ))}
           </div>
@@ -145,17 +173,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           {latestBenchmark?.benchmark_json.references?.length ? (
             <div className="mt-4 grid gap-4">
               {latestBenchmark.benchmark_json.references.map((reference) => (
-                <div className="grid gap-4 rounded-md border border-[#ded8cc] bg-[#fffefa] p-3 sm:grid-cols-[150px_1fr]" key={reference.title}>
-                  <img alt={reference.title} className="h-32 w-full rounded-md object-cover" src={reference.image_url} />
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="font-semibold">{reference.title}</h3>
-                      <span className="rounded-full bg-[#315f43] px-2 py-1 text-xs font-bold text-white">{reference.score}/100</span>
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-[#5f675f]">{reference.justification}</p>
-                    <p className="mt-2 text-xs font-semibold text-[#6b7280]">Recherche image: {reference.image_query}</p>
-                  </div>
-                </div>
+                <BenchmarkCard key={reference.title} reference={reference} />
               ))}
             </div>
           ) : <EmptyState text="Selectionne une idee, puis genere le benchmark visuel." />}
@@ -165,9 +183,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           <SectionTitle title="Plan texture conceptuel" isDemo={Boolean(latestPlan?.is_demo)} />
           {latestPlan ? (
             <div className="mt-4 space-y-4">
+              <p className="rounded-md border border-[#d8a555] bg-[#fff7df] px-4 py-3 text-sm font-bold text-[#8a5a00]">
+                {latestPlan.plan_json.non_metric_warning || "Schéma conceptuel, non métrique"}
+              </p>
               {latestPlan.concept_svg ? <div className="overflow-hidden rounded-md border border-[#ded8cc] bg-white" dangerouslySetInnerHTML={{ __html: latestPlan.concept_svg }} /> : null}
               <p className="rounded-md border border-[#ded8cc] bg-[#fffefa] p-4 text-sm leading-6 text-[#39423a]">{latestPlan.realistic_image_prompt}</p>
               <DetailList title="Zones" items={latestPlan.plan_json.zones} />
+              <DetailList title="Legende materiaux" items={latestPlan.plan_json.material_legend} />
+              <DetailList title="Legende vegetation" items={latestPlan.plan_json.planting_legend} />
               <DetailList title="Validation" items={latestPlan.plan_json.validation_notes} />
             </div>
           ) : <EmptyState text="Selectionne une idee, puis genere le plan texture et le prompt realiste." />}
@@ -198,6 +221,16 @@ function DetailList({ title, items }: { title: string; items?: string[] }) {
       <ul className="mt-2 grid gap-2 text-sm text-[#5f675f]">
         {items.map((item) => <li className="rounded-md bg-[#fffefa] px-3 py-2" key={item}>{item}</li>)}
       </ul>
+    </div>
+  );
+}
+
+function CompactList({ title, items }: { title: string; items?: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <div>
+      <span className="font-semibold text-[#17211b]">{title}</span>
+      <p>{items.join(", ")}</p>
     </div>
   );
 }

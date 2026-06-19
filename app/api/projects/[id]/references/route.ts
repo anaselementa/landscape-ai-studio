@@ -22,11 +22,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let benchmark: BenchmarkPayload;
     let demoReason: string | null = null;
     try {
-      const prompt = `Genere un benchmark visuel pour l'idee selectionnee. Chaque reference doit inclure image_url plausible, title, justification, image_query et score 0-100.
+      const prompt = `Genere un benchmark visuel pour l'idee selectionnee.
+Chaque reference doit inclure title, justification, image_query et score 0-100.
+Le champ image_url est optionnel: ne l'ajoute que si tu as une URL image publique directe et fiable; sinon mets null.
+La structure doit etre compatible avec une future API d'images qui utilisera image_query.
 Projet: ${JSON.stringify(project)}
 Analyse: ${JSON.stringify(analysis?.analysis_json || {})}
 Idee selectionnee: ${JSON.stringify(selectedIdea)}
-Retourne uniquement JSON {"summary":"","selected_idea_title":"","references":[{"title":"","image_url":"","image_query":"","justification":"","score":90}]}.`;
+Retourne uniquement JSON {"summary":"","selected_idea_title":"","references":[{"title":"","image_url":null,"image_query":"","justification":"","score":90}]}.`;
       const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
       const parsed = parseJsonResponse<BenchmarkPayload>(response.output_text);
       benchmark = {
@@ -34,7 +37,7 @@ Retourne uniquement JSON {"summary":"","selected_idea_title":"","references":[{"
         selected_idea_title: parsed.selected_idea_title || selectedIdea.title,
         references: (parsed.references || []).slice(0, 3).map((reference) => ({
           title: reference.title,
-          image_url: reference.image_url,
+          image_url: isValidImageUrl(reference.image_url) ? reference.image_url : null,
           image_query: reference.image_query,
           justification: reference.justification,
           score: Math.max(0, Math.min(100, asNumber(reference.score, 75)))
@@ -60,5 +63,18 @@ Retourne uniquement JSON {"summary":"","selected_idea_title":"","references":[{"
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur benchmark.";
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+function isValidImageUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
   }
 }

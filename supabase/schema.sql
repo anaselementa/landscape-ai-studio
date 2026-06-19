@@ -57,6 +57,8 @@ create table if not exists public.ideas (
   title text not null,
   description text,
   intervention_level text,
+  spaces_concerned jsonb not null default '[]'::jsonb,
+  spatial_moves jsonb not null default '[]'::jsonb,
   concept_keywords jsonb not null default '[]'::jsonb,
   materials jsonb not null default '[]'::jsonb,
   plants jsonb not null default '[]'::jsonb,
@@ -64,6 +66,8 @@ create table if not exists public.ideas (
   lighting jsonb not null default '[]'::jsonb,
   cost_level text,
   maintenance_level text,
+  preserved_elements jsonb not null default '[]'::jsonb,
+  transformed_elements jsonb not null default '[]'::jsonb,
   status text not null default 'suggested',
   selected boolean not null default false,
   is_demo boolean not null default false,
@@ -97,7 +101,11 @@ create table if not exists public.plans (
 );
 
 alter table public.projects add column if not exists selected_idea_id uuid;
+alter table public.ideas add column if not exists spaces_concerned jsonb not null default '[]'::jsonb;
+alter table public.ideas add column if not exists spatial_moves jsonb not null default '[]'::jsonb;
 alter table public.ideas add column if not exists concept_keywords jsonb not null default '[]'::jsonb;
+alter table public.ideas add column if not exists preserved_elements jsonb not null default '[]'::jsonb;
+alter table public.ideas add column if not exists transformed_elements jsonb not null default '[]'::jsonb;
 alter table public.ideas add column if not exists selected boolean not null default false;
 alter table public.benchmarks add column if not exists selected_idea_id uuid;
 alter table public.plans add column if not exists selected_idea_id uuid;

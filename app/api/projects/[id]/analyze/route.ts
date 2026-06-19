@@ -22,10 +22,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let demoReason: string | null = null;
 
     try {
-      const imageInputs = (images || []).slice(0, 8).map((image: any) => ({ type: "input_image", image_url: image.public_url }));
+      const imageList = (images || []).slice(0, 8);
+      const imageInputs = imageList.map((image: any) => ({ type: "input_image", image_url: image.public_url }));
+      const photoIndex = imageList.map((image: any, index: number) => ({
+        index: index + 1,
+        id: image.id,
+        title: image.title,
+        space_name: image.space_name,
+        image_url: image.public_url
+      }));
       const prompt = `
-Tu es un architecte paysagiste senior. Analyse ce projet de villa et ses photos comme un diagnostic V0.3 exploitable.
-Priorites: climat mediterraneen, usages de villa, eau, ombre, entretien, circulation, ambiance et potentiel de valorisation.
+Tu es un architecte paysagiste senior. Analyse ce projet de villa a partir des photos fournies.
+Tu dois analyser chaque photo separement avant de produire la synthese globale.
+Chaque observation doit etre specifique aux photos: evite les phrases generiques, les suppositions non visibles et les conseils vagues.
 
 Projet:
 - Nom: ${project.name}
@@ -35,16 +44,40 @@ Projet:
 - Contraintes: ${project.constraints || "non precisees"}
 - Photos: ${(images || []).length}
 
+Index des photos:
+${JSON.stringify(photoIndex)}
+
 Retourne uniquement ce JSON:
 {
   "site_summary": "string",
   "climate_reading": "string",
+  "photo_analyses": [
+    {
+      "photo_id": "string",
+      "photo_title": "string",
+      "image_url": "string",
+      "probable_space": "string",
+      "visible_existing_elements": ["string"],
+      "visible_materials": ["string"],
+      "visible_vegetation": ["string"],
+      "possible_uses": ["string"],
+      "problems": ["string"],
+      "opportunities": ["string"],
+      "recommended_interventions": ["string"]
+    }
+  ],
   "existing_elements": ["string"],
   "opportunities": ["string"],
   "constraints_to_respect": ["string"],
   "design_direction": "string",
   "recommended_next_steps": ["string"]
-}`;
+}
+
+Contraintes de qualite:
+- une entree dans photo_analyses par photo fournie;
+- nomme les espaces detectes: entree, jardin piscine, terrasse, sortie/passage, massif, allee, etc.;
+- les problemes doivent etre visibles ou directement deduits de l'etat du site;
+- la synthese globale doit reprendre les noms d'espaces detectes.`;
 
       const response = await getOpenAI().responses.create({
         model: OPENAI_TEXT_MODEL,
@@ -56,6 +89,7 @@ Retourne uniquement ce JSON:
       analysis = {
         site_summary: parsed.site_summary || "",
         climate_reading: parsed.climate_reading || "",
+        photo_analyses: normalizePhotoAnalyses(parsed.photo_analyses),
         existing_elements: asStringArray(parsed.existing_elements),
         opportunities: asStringArray(parsed.opportunities),
         constraints_to_respect: asStringArray(parsed.constraints_to_respect),
@@ -82,4 +116,24 @@ Retourne uniquement ce JSON:
     const message = error instanceof Error ? error.message : "Erreur analyse.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function normalizePhotoAnalyses(value: LandscapeAnalysis["photo_analyses"]) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((photo) => ({
+    photo_id: photo.photo_id || null,
+    photo_title: photo.photo_title || null,
+    image_url: photo.image_url || null,
+    probable_space: photo.probable_space || "espace non identifie",
+    visible_existing_elements: asStringArray(photo.visible_existing_elements),
+    visible_materials: asStringArray(photo.visible_materials),
+    visible_vegetation: asStringArray(photo.visible_vegetation),
+    possible_uses: asStringArray(photo.possible_uses),
+    problems: asStringArray(photo.problems),
+    opportunities: asStringArray(photo.opportunities),
+    recommended_interventions: asStringArray(photo.recommended_interventions)
+  }));
 }

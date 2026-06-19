@@ -23,12 +23,20 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let plan: PlanPayload;
     let demoReason: string | null = null;
     try {
-      const prompt = `Genere un plan texture V0.3 pour l'idee selectionnee. Le SVG sera construit par l'app, mais fournis zones, materiaux, vegetaux, notes et prompt image realiste.
+      const prompt = `Genere un plan texture V0.3 pour l'idee selectionnee.
+Le SVG conceptuel est construit par l'app, mais tes listes doivent aider a representer: entree, jardin piscine, sortie/passage, terrasse, masses vegetales.
+Le plan doit s'adapter clairement a l'idee selectionnee.
 Projet: ${JSON.stringify(project)}
 Analyse: ${JSON.stringify(analysis?.analysis_json || {})}
 Idee selectionnee: ${JSON.stringify(selectedIdea)}
 Benchmark: ${JSON.stringify(benchmark?.benchmark_json || {})}
-Retourne uniquement JSON {"plan_title":"","realistic_image_prompt":"","zones":[""],"materials":[""],"planting":[""],"validation_notes":[""]}.`;
+Retourne uniquement JSON {"plan_title":"","realistic_image_prompt":"","zones":[""],"materials":[""],"planting":[""],"material_legend":[""],"planting_legend":[""],"validation_notes":[""],"non_metric_warning":"Schéma conceptuel, non métrique"}.
+
+Contraintes:
+- realistic_image_prompt doit etre en francais, tres exploitable pour un generateur d'image;
+- decris une vue aerienne ou axonometrie realiste de jardin de villa;
+- inclus entree, jardin piscine, sortie/passage, terrasse, masses vegetales, materiaux, vegetation, mobilier, lumiere;
+- ajoute la mention exacte "Schéma conceptuel, non métrique" dans non_metric_warning.`;
       const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
       const parsed = parseJsonResponse<Omit<PlanPayload, "concept_svg">>(response.output_text);
       plan = {
@@ -38,7 +46,10 @@ Retourne uniquement JSON {"plan_title":"","realistic_image_prompt":"","zones":["
         zones: asStringArray(parsed.zones),
         materials: asStringArray(parsed.materials),
         planting: asStringArray(parsed.planting),
-        validation_notes: asStringArray(parsed.validation_notes)
+        material_legend: asStringArray(parsed.material_legend),
+        planting_legend: asStringArray(parsed.planting_legend),
+        validation_notes: asStringArray(parsed.validation_notes),
+        non_metric_warning: parsed.non_metric_warning || "Schéma conceptuel, non métrique"
       };
     } catch (openAiError) {
       demoReason = getOpenAIDemoReason(openAiError);

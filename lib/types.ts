@@ -26,11 +26,26 @@ export type SiteImage = {
 export type LandscapeAnalysis = {
   site_summary: string;
   climate_reading: string;
+  photo_analyses: PhotoAnalysis[];
   existing_elements: string[];
   opportunities: string[];
   constraints_to_respect: string[];
   design_direction: string;
   recommended_next_steps: string[];
+};
+
+export type PhotoAnalysis = {
+  photo_id?: string | null;
+  photo_title?: string | null;
+  image_url?: string | null;
+  probable_space: string;
+  visible_existing_elements: string[];
+  visible_materials: string[];
+  visible_vegetation: string[];
+  possible_uses: string[];
+  problems: string[];
+  opportunities: string[];
+  recommended_interventions: string[];
 };
 
 export type AnalysisRecord = {
@@ -63,6 +78,8 @@ export type DesignIdea = {
   title: string;
   description: string;
   intervention_level: "light" | "medium" | "strong";
+  spaces_concerned: string[];
+  spatial_moves: string[];
   concept_keywords: string[];
   materials: string[];
   plants: string[];
@@ -70,6 +87,8 @@ export type DesignIdea = {
   lighting: string[];
   cost_level: string;
   maintenance_level: string;
+  preserved_elements: string[];
+  transformed_elements: string[];
 };
 
 export type IdeaRecord = DesignIdea & {
@@ -85,7 +104,7 @@ export type IdeaRecord = DesignIdea & {
 
 export type BenchmarkReference = {
   title: string;
-  image_url: string;
+  image_url?: string | null;
   image_query: string;
   justification: string;
   score: number;
@@ -116,7 +135,10 @@ export type PlanPayload = {
   zones: string[];
   materials: string[];
   planting: string[];
+  material_legend: string[];
+  planting_legend: string[];
   validation_notes: string[];
+  non_metric_warning: string;
 };
 
 export type PlanRecord = {
