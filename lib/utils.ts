@@ -1,18 +1,15 @@
-export function asStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((item) => String(item));
-  if (typeof value === "string" && value.trim()) return [value];
-  return [];
-}
-
-export function safeDate(value: string | null | undefined) {
-  if (!value) return "Date inconnue";
-  try {
-    return new Date(value).toLocaleDateString("fr-FR");
-  } catch {
-    return value;
+export function safeDate(value?: string | null) {
+  if (!value) {
+    return "";
   }
+
+  return new Date(value).toLocaleDateString("fr-FR");
 }
 
-export function safeJson(value: unknown) {
-  return JSON.stringify(value ?? {}, null, 2);
+export function selectedIdeaSummary(idea?: { title?: string | null; description?: string | null } | null) {
+  if (!idea) {
+    return "Aucune idee selectionnee";
+  }
+
+  return `${idea.title || "Idee selectionnee"} - ${idea.description || ""}`.trim();
 }

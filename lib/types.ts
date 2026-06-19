@@ -6,6 +6,7 @@ export type Project = {
   style: string | null;
   constraints: string | null;
   status: string | null;
+  selected_idea_id?: string | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -23,19 +24,13 @@ export type SiteImage = {
 };
 
 export type LandscapeAnalysis = {
-  space_type: string;
-  objective_description: string;
+  site_summary: string;
+  climate_reading: string;
   existing_elements: string[];
-  landscape_diagnosis: string;
-  elements_to_keep: string[];
-  elements_to_improve: string[];
-  swot: {
-    strengths: string[];
-    weaknesses: string[];
-    opportunities: string[];
-    threats: string[];
-  };
+  opportunities: string[];
+  constraints_to_respect: string[];
   design_direction: string;
+  recommended_next_steps: string[];
 };
 
 export type AnalysisRecord = {
@@ -48,14 +43,17 @@ export type AnalysisRecord = {
   created_at: string;
 };
 
-export type SwotRecord = {
-  id: string;
-  project_id: string;
-  analysis_id: string | null;
+export type SwotPayload = {
   strengths: string[];
   weaknesses: string[];
   opportunities: string[];
   threats: string[];
+};
+
+export type SwotRecord = SwotPayload & {
+  id: string;
+  project_id: string;
+  analysis_id: string | null;
   is_demo?: boolean | null;
   demo_reason?: string | null;
   created_at: string;
@@ -65,6 +63,7 @@ export type DesignIdea = {
   title: string;
   description: string;
   intervention_level: "light" | "medium" | "strong";
+  concept_keywords: string[];
   materials: string[];
   plants: string[];
   furniture: string[];
@@ -78,44 +77,56 @@ export type IdeaRecord = DesignIdea & {
   project_id: string;
   analysis_id: string | null;
   status: string | null;
+  selected?: boolean | null;
   is_demo?: boolean | null;
   demo_reason?: string | null;
   created_at: string;
+};
+
+export type BenchmarkReference = {
+  title: string;
+  image_url: string;
+  image_query: string;
+  justification: string;
+  score: number;
+};
+
+export type BenchmarkPayload = {
+  summary: string;
+  selected_idea_title?: string;
+  references: BenchmarkReference[];
 };
 
 export type BenchmarkRecord = {
   id: string;
   project_id: string;
   analysis_id: string | null;
+  selected_idea_id: string | null;
   summary: string | null;
-  benchmark_json: {
-    summary?: string;
-    references?: Array<{
-      title: string;
-      region: string;
-      why_relevant: string;
-      materials: string[];
-      planting_palette: string[];
-      design_lessons: string[];
-    }>;
-  };
+  benchmark_json: BenchmarkPayload;
   is_demo?: boolean | null;
   demo_reason?: string | null;
   created_at: string;
+};
+
+export type PlanPayload = {
+  plan_title: string;
+  concept_svg: string;
+  realistic_image_prompt: string;
+  zones: string[];
+  materials: string[];
+  planting: string[];
+  validation_notes: string[];
 };
 
 export type PlanRecord = {
   id: string;
   project_id: string;
   analysis_id: string | null;
-  plan_json: {
-    plan_title?: string;
-    zones?: string[];
-    materials?: string[];
-    planting?: string[];
-    validation_notes?: string[];
-  };
-  realistic_plan_prompt: string | null;
+  selected_idea_id: string | null;
+  plan_json: PlanPayload;
+  concept_svg: string | null;
+  realistic_image_prompt: string | null;
   is_demo?: boolean | null;
   demo_reason?: string | null;
   created_at: string;

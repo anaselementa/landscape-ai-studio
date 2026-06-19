@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-export function SelectIdeaButton({ projectId, ideaId, disabled }: { projectId: string; ideaId: string; disabled?: boolean }) {
+export function SelectIdeaButton({
+  projectId,
+  ideaId,
+  selected
+}: {
+  projectId: string;
+  ideaId: string;
+  selected?: boolean | null;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -11,26 +19,30 @@ export function SelectIdeaButton({ projectId, ideaId, disabled }: { projectId: s
   async function selectIdea() {
     setLoading(true);
     setError("");
+
     const response = await fetch(`/api/projects/${projectId}/select-idea`, {
       method: "POST",
-      body: JSON.stringify({ idea_id: ideaId }),
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idea_id: ideaId })
     });
-    const result = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({}));
+
     setLoading(false);
+
     if (!response.ok) {
-      setError(result.error || "Erreur selection.");
+      setError(data.error || "Selection impossible.");
       return;
     }
+
     router.refresh();
   }
 
   return (
-    <div>
-      <button className="button-secondary" onClick={selectIdea} disabled={disabled || loading}>
-        {disabled ? "Deja selectionnee" : loading ? "Selection..." : "Selectionner cette idee"}
+    <div className="space-y-2">
+      <button className={selected ? "btn-primary" : "btn-secondary"} disabled={selected || loading} onClick={selectIdea} type="button">
+        {selected ? "Idee selectionnee" : loading ? "Selection..." : "Selectionner"}
       </button>
-      {error ? <div className="error" style={{ marginTop: 12 }}>{error}</div> : null}
+      {error ? <p className="text-sm font-medium text-[#9b2f22]">{error}</p> : null}
     </div>
   );
 }

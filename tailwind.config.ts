@@ -1,39 +1,19 @@
-"use client";
+import type { Config } from "tailwindcss";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-
-export function UploadPhotosForm({ projectId }: { projectId: string }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-    const formData = new FormData(event.currentTarget);
-    const response = await fetch(`/api/projects/${projectId}/images`, { method: "POST", body: formData });
-    const result = await response.json().catch(() => ({}));
-    setLoading(false);
-    if (!response.ok) {
-      setError(result.error || "Erreur upload.");
-      return;
+const config: Config = {
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        leaf: "#315f43",
+        soil: "#6d5948",
+        sand: "#f5f1e8",
+        clay: "#b36b45",
+        water: "#256d85"
+      }
     }
-    (event.currentTarget.querySelector('input[type="file"]') as HTMLInputElement | null)?.value && event.currentTarget.reset();
-    router.refresh();
-  }
+  },
+  plugins: []
+};
 
-  return (
-    <form onSubmit={onSubmit} className="grid">
-      {error ? <div className="error">{error}</div> : null}
-      <label className="label">Espace
-        <input className="input" name="space_name" placeholder="Jardin piscine" required />
-      </label>
-      <label className="label">Photos
-        <input className="input" name="files" type="file" accept="image/*" multiple required />
-      </label>
-      <button className="button" disabled={loading}>{loading ? "Import..." : "Importer"}</button>
-    </form>
-  );
-}
+export default config;

@@ -3,68 +3,31 @@ import { asStringArray, parseJsonResponse } from "@/lib/ai-json";
 import { demoSwot, getOpenAIDemoReason, insertWithOptionalDemoColumns } from "@/lib/demo-ai";
 import { getOpenAI, OPENAI_TEXT_MODEL } from "@/lib/openai-client";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import type { SwotPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-type SwotPayload = {
-  strengths: string[];
-  weaknesses: string[];
-  opportunities: string[];
-  threats: string[];
-};
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: projectId } = await params;
     const supabase = getSupabaseAdmin();
-
     const [{ data: project, error: projectError }, { data: analysis }] = await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("analyses").select("*").eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle()
     ]);
+    if (projectError || !project) return NextResponse.json({ error: "Projet introuvable." }, { status: 404 });
+    if (!analysis) return NextResponse.json({ error: "Lance d'abord l'analyse." }, { status: 400 });
 
-    if (projectError || !project) {
-      return NextResponse.json({ error: "Projet introuvable." }, { status: 404 });
-    }
-
-    if (!analysis) {
-      return NextResponse.json({ error: "Lance d'abord l'analyse paysagere." }, { status: 400 });
-    }
-
-    let payload: SwotPayload;
+    let swot: SwotPayload;
     let demoReason: string | null = null;
-
     try {
-      const prompt = `
-Tu es un consultant en architecture de paysage.
-Genere un SWOT clair pour ce projet, a partir de l'analyse suivante.
-
+      const prompt = `Genere un SWOT paysager decisionnel, concret et priorise.
 Projet: ${project.name}
-Type: ${project.project_type || "non precise"}
-Localisation: ${project.location || "non precisee"}
-Style: ${project.style || "non precise"}
-Contraintes: ${project.constraints || "non precisees"}
 Analyse: ${JSON.stringify(analysis.analysis_json)}
-
-Retourne uniquement un JSON valide:
-{
-  "strengths": ["string"],
-  "weaknesses": ["string"],
-  "opportunities": ["string"],
-  "threats": ["string"]
-}
-`;
-
-      const response = await getOpenAI().responses.create({
-        model: OPENAI_TEXT_MODEL,
-        input: prompt,
-        text: {
-          format: { type: "json_object" }
-        }
-      } as any);
-
+Retourne uniquement JSON {"strengths":[""],"weaknesses":[""],"opportunities":[""],"threats":[""]}.`;
+      const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
       const parsed = parseJsonResponse<SwotPayload>(response.output_text);
-      payload = {
+      swot = {
         strengths: asStringArray(parsed.strengths),
         weaknesses: asStringArray(parsed.weaknesses),
         opportunities: asStringArray(parsed.opportunities),
@@ -72,34 +35,21 @@ Retourne uniquement un JSON valide:
       };
     } catch (openAiError) {
       demoReason = getOpenAIDemoReason(openAiError);
-
-      if (!demoReason) {
-        throw openAiError;
-      }
-
-      payload = demoSwot();
+      if (!demoReason) throw openAiError;
+      swot = demoSwot();
     }
 
-    const { data, error } = await insertWithOptionalDemoColumns(
-      supabase,
-      "swots",
-      {
-        project_id: projectId,
-        analysis_id: analysis.id,
-        ...payload,
-        is_demo: Boolean(demoReason),
-        demo_reason: demoReason
-      },
-      "id"
-    );
-
-    if (error) {
-      throw error;
-    }
-
-    return NextResponse.json({ ok: true, swot_id: data.id, swot: payload, demoMode: Boolean(demoReason), demoReason });
+    const { data, error } = await insertWithOptionalDemoColumns(supabase, "swots", {
+      project_id: projectId,
+      analysis_id: analysis.id,
+      ...swot,
+      is_demo: Boolean(demoReason),
+      demo_reason: demoReason
+    }, "id");
+    if (error) throw error;
+    return NextResponse.json({ ok: true, swot_id: data.id, swot, demoMode: Boolean(demoReason), demoReason });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erreur pendant la generation SWOT.";
+    const message = error instanceof Error ? error.message : "Erreur SWOT.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

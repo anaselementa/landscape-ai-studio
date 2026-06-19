@@ -18,8 +18,8 @@ export function UploadPhotosForm({ projectId }: { projectId: string }) {
       method: "POST",
       body: new FormData(form)
     });
-
     const data = await response.json().catch(() => ({}));
+
     setLoading(false);
 
     if (!response.ok) {
@@ -33,21 +33,18 @@ export function UploadPhotosForm({ projectId }: { projectId: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
+    <form className="grid gap-4 lg:grid-cols-[1fr_1.3fr_auto] lg:items-end" onSubmit={onSubmit}>
       <label className="grid gap-2">
         <span className="text-sm font-semibold">Espace</span>
         <input className="input" name="space_name" placeholder="Terrasse, entree, piscine..." />
       </label>
-
       <label className="grid gap-2">
         <span className="text-sm font-semibold">Photos</span>
-        <input className="input" name="files" type="file" accept="image/png,image/jpeg,image/webp" multiple required />
+        <input className="input" name="files" type="file" accept="image/png,image/jpeg,image/webp,image/avif" multiple required />
       </label>
-
       <button className="btn-primary" disabled={loading} type="submit">
         {loading ? "Import..." : "Importer"}
       </button>
-
       {message ? <p className="text-sm text-[#5f675f] lg:col-span-3">{message}</p> : null}
     </form>
   );

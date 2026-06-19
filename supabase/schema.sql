@@ -1,5 +1,4 @@
--- Landscape AI Studio V0.1
--- Execute this file in the Supabase SQL editor.
+-- Landscape AI Studio V0.3
 
 create extension if not exists pgcrypto;
 
@@ -11,6 +10,7 @@ create table if not exists public.projects (
   style text,
   constraints text,
   status text not null default 'draft',
+  selected_idea_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -57,6 +57,7 @@ create table if not exists public.ideas (
   title text not null,
   description text,
   intervention_level text,
+  concept_keywords jsonb not null default '[]'::jsonb,
   materials jsonb not null default '[]'::jsonb,
   plants jsonb not null default '[]'::jsonb,
   furniture jsonb not null default '[]'::jsonb,
@@ -64,6 +65,7 @@ create table if not exists public.ideas (
   cost_level text,
   maintenance_level text,
   status text not null default 'suggested',
+  selected boolean not null default false,
   is_demo boolean not null default false,
   demo_reason text,
   created_at timestamptz not null default now()
@@ -73,6 +75,7 @@ create table if not exists public.benchmarks (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects(id) on delete cascade,
   analysis_id uuid references public.analyses(id) on delete set null,
+  selected_idea_id uuid references public.ideas(id) on delete set null,
   summary text,
   benchmark_json jsonb not null,
   is_demo boolean not null default false,
@@ -84,41 +87,30 @@ create table if not exists public.plans (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects(id) on delete cascade,
   analysis_id uuid references public.analyses(id) on delete set null,
+  selected_idea_id uuid references public.ideas(id) on delete set null,
   plan_json jsonb not null,
-  realistic_plan_prompt text,
+  concept_svg text,
+  realistic_image_prompt text,
   is_demo boolean not null default false,
   demo_reason text,
   created_at timestamptz not null default now()
 );
 
-alter table public.analyses add column if not exists is_demo boolean not null default false;
-alter table public.analyses add column if not exists demo_reason text;
-alter table public.swots add column if not exists is_demo boolean not null default false;
-alter table public.swots add column if not exists demo_reason text;
-alter table public.ideas add column if not exists is_demo boolean not null default false;
-alter table public.ideas add column if not exists demo_reason text;
+alter table public.projects add column if not exists selected_idea_id uuid;
+alter table public.ideas add column if not exists concept_keywords jsonb not null default '[]'::jsonb;
+alter table public.ideas add column if not exists selected boolean not null default false;
+alter table public.benchmarks add column if not exists selected_idea_id uuid;
+alter table public.plans add column if not exists selected_idea_id uuid;
+alter table public.plans add column if not exists concept_svg text;
+alter table public.plans add column if not exists realistic_image_prompt text;
 
 create index if not exists site_images_project_id_idx on public.site_images(project_id);
 create index if not exists analyses_project_id_created_at_idx on public.analyses(project_id, created_at desc);
 create index if not exists swots_project_id_created_at_idx on public.swots(project_id, created_at desc);
 create index if not exists ideas_project_id_created_at_idx on public.ideas(project_id, created_at desc);
+create index if not exists ideas_project_id_selected_idx on public.ideas(project_id, selected);
 create index if not exists benchmarks_project_id_created_at_idx on public.benchmarks(project_id, created_at desc);
 create index if not exists plans_project_id_created_at_idx on public.plans(project_id, created_at desc);
-
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists projects_set_updated_at on public.projects;
-create trigger projects_set_updated_at
-before update on public.projects
-for each row execute function public.set_updated_at();
 
 insert into storage.buckets (id, name, public)
 values ('site-images', 'site-images', true)
@@ -127,8 +119,7 @@ on conflict (id) do update set public = excluded.public;
 do $$
 begin
   if not exists (
-    select 1
-    from pg_policies
+    select 1 from pg_policies
     where schemaname = 'storage'
       and tablename = 'objects'
       and policyname = 'Public read site images'

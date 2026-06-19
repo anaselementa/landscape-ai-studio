@@ -1,98 +1,64 @@
 import { NextResponse } from "next/server";
-import { parseJsonResponse } from "@/lib/ai-json";
-import { demoReferences, getOpenAIDemoReason, insertWithOptionalDemoColumns } from "@/lib/demo-ai";
+import { asNumber, parseJsonResponse } from "@/lib/ai-json";
+import { demoBenchmark, getOpenAIDemoReason, insertWithOptionalDemoColumns } from "@/lib/demo-ai";
 import { getOpenAI, OPENAI_TEXT_MODEL } from "@/lib/openai-client";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import type { BenchmarkPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-type BenchmarkPayload = ReturnType<typeof demoReferences>;
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: projectId } = await params;
     const supabase = getSupabaseAdmin();
-
-    const [{ data: project, error: projectError }, { data: analysis }] = await Promise.all([
+    const [{ data: project, error: projectError }, { data: analysis }, { data: selectedIdea }] = await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
-      supabase.from("analyses").select("*").eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      supabase.from("analyses").select("*").eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("ideas").select("*").eq("project_id", projectId).eq("selected", true).maybeSingle()
     ]);
-
-    if (projectError || !project) {
-      return NextResponse.json({ error: "Projet introuvable." }, { status: 404 });
-    }
+    if (projectError || !project) return NextResponse.json({ error: "Projet introuvable." }, { status: 404 });
+    if (!selectedIdea) return NextResponse.json({ error: "Selectionne une idee avant le benchmark." }, { status: 400 });
 
     let benchmark: BenchmarkPayload;
     let demoReason: string | null = null;
-
     try {
-      const prompt = `
-Tu es un directeur de creation en architecture de paysage.
-Genere un benchmark de references pour ce projet de jardin de villa.
-
-Projet: ${project.name}
-Type: ${project.project_type || "non precise"}
-Localisation: ${project.location || "non precisee"}
-Style: ${project.style || "non precise"}
-Contraintes: ${project.constraints || "non precisees"}
+      const prompt = `Genere un benchmark visuel pour l'idee selectionnee. Chaque reference doit inclure image_url plausible, title, justification, image_query et score 0-100.
+Projet: ${JSON.stringify(project)}
 Analyse: ${JSON.stringify(analysis?.analysis_json || {})}
-
-Retourne uniquement un JSON valide:
-{
-  "summary": "string",
-  "references": [
-    {
-      "title": "string",
-      "region": "string",
-      "why_relevant": "string",
-      "materials": ["string"],
-      "planting_palette": ["string"],
-      "design_lessons": ["string"]
-    }
-  ]
-}
-`;
-
-      const response = await getOpenAI().responses.create({
-        model: OPENAI_TEXT_MODEL,
-        input: prompt,
-        text: {
-          format: { type: "json_object" }
-        }
-      } as any);
-
-      benchmark = parseJsonResponse<BenchmarkPayload>(response.output_text);
+Idee selectionnee: ${JSON.stringify(selectedIdea)}
+Retourne uniquement JSON {"summary":"","selected_idea_title":"","references":[{"title":"","image_url":"","image_query":"","justification":"","score":90}]}.`;
+      const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
+      const parsed = parseJsonResponse<BenchmarkPayload>(response.output_text);
+      benchmark = {
+        summary: parsed.summary || "",
+        selected_idea_title: parsed.selected_idea_title || selectedIdea.title,
+        references: (parsed.references || []).slice(0, 3).map((reference) => ({
+          title: reference.title,
+          image_url: reference.image_url,
+          image_query: reference.image_query,
+          justification: reference.justification,
+          score: Math.max(0, Math.min(100, asNumber(reference.score, 75)))
+        }))
+      };
     } catch (openAiError) {
       demoReason = getOpenAIDemoReason(openAiError);
-
-      if (!demoReason) {
-        throw openAiError;
-      }
-
-      benchmark = demoReferences(project);
+      if (!demoReason) throw openAiError;
+      benchmark = demoBenchmark(project, selectedIdea);
     }
 
-    const { data, error } = await insertWithOptionalDemoColumns(
-      supabase,
-      "benchmarks",
-      {
-        project_id: projectId,
-        analysis_id: analysis?.id || null,
-        summary: benchmark.summary,
-        benchmark_json: benchmark,
-        is_demo: Boolean(demoReason),
-        demo_reason: demoReason
-      },
-      "id"
-    );
-
-    if (error) {
-      throw error;
-    }
-
+    const { data, error } = await insertWithOptionalDemoColumns(supabase, "benchmarks", {
+      project_id: projectId,
+      analysis_id: analysis?.id || null,
+      selected_idea_id: selectedIdea.id,
+      summary: benchmark.summary,
+      benchmark_json: benchmark,
+      is_demo: Boolean(demoReason),
+      demo_reason: demoReason
+    }, "id");
+    if (error) throw error;
     return NextResponse.json({ ok: true, benchmark_id: data.id, benchmark, demoMode: Boolean(demoReason), demoReason });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erreur pendant la generation des references.";
+    const message = error instanceof Error ? error.message : "Erreur benchmark.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Landscape AI Studio",
-  description: "Studio IA pour projets de paysage, analyses, SWOT et idees d'amenagement."
+  description: "V0.3 - Analyse paysagere, benchmark visuel, idees et plan texture."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

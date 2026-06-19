@@ -31,54 +31,36 @@ async function createProject(formData: FormData) {
 export default function NewProjectPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Link className="btn-quiet -ml-3" href="/">
-        Retour au dashboard
-      </Link>
-
+      <Link className="btn-quiet -ml-3" href="/">Retour</Link>
       <header>
         <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#315f43]">Nouveau projet</p>
         <h1 className="mt-3 text-4xl font-semibold">Fiche paysagere</h1>
-        <p className="mt-3 text-sm leading-6 text-[#5f675f]">
-          Ces informations guident l'analyse IA et les propositions d'amenagement.
-        </p>
       </header>
-
       <form action={createProject} className="card grid gap-5 p-6">
         <label className="grid gap-2">
           <span className="text-sm font-semibold">Nom</span>
           <input className="input" name="name" placeholder="Villa M" required />
         </label>
-
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2">
             <span className="text-sm font-semibold">Type</span>
             <input className="input" name="project_type" placeholder="Jardin de villa" />
           </label>
-
           <label className="grid gap-2">
             <span className="text-sm font-semibold">Localisation</span>
             <input className="input" name="location" placeholder="Casablanca" />
           </label>
         </div>
-
         <label className="grid gap-2">
           <span className="text-sm font-semibold">Style souhaite</span>
           <input className="input" name="style" placeholder="Mediterraneen contemporain" />
         </label>
-
         <label className="grid gap-2">
           <span className="text-sm font-semibold">Contraintes</span>
-          <textarea
-            className="input min-h-32 resize-y"
-            name="constraints"
-            placeholder="Conserver les sujets existants, limiter les travaux lourds, tenir compte de l'ombre..."
-          />
+          <textarea className="input min-h-32 resize-y" name="constraints" placeholder="Conserver certains sujets, limiter l'eau, preserver les vues..." />
         </label>
-
         <div className="flex justify-end">
-          <button className="btn-primary w-full sm:w-auto" type="submit">
-            Creer le projet
-          </button>
+          <button className="btn-primary w-full sm:w-auto" type="submit">Creer le projet</button>
         </div>
       </form>
     </div>

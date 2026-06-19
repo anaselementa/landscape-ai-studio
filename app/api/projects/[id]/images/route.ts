@@ -18,26 +18,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const uploaded = [];
 
     for (const file of files) {
-      if (!file.type.startsWith("image/")) {
-        continue;
-      }
+      if (!file.type.startsWith("image/")) continue;
 
-      const extension = file.name.split(".").pop() || "jpg";
-      const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "-");
-      const path = `${projectId}/${crypto.randomUUID()}-${safeName || `site-image.${extension}`}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "-") || "site-image.jpg";
+      const path = `${projectId}/${crypto.randomUUID()}-${safeName}`;
 
       const { error: uploadError } = await supabase.storage.from("site-images").upload(path, file, {
         contentType: file.type,
         upsert: false
       });
-
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
       const { data: publicData } = supabase.storage.from("site-images").getPublicUrl(path);
-
-      const { data, error: insertError } = await supabase
+      const { data, error } = await supabase
         .from("site_images")
         .insert({
           project_id: projectId,
@@ -51,10 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .select("id,public_url")
         .single();
 
-      if (insertError) {
-        throw insertError;
-      }
-
+      if (error) throw error;
       uploaded.push(data);
     }
 

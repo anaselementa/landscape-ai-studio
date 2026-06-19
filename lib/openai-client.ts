@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 function requireOpenAiKey() {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is missing. Add it to your Vercel environment variables.");
+    throw new Error("OPENAI_API_KEY is missing.");
   }
 
   return process.env.OPENAI_API_KEY;

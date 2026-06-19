@@ -4,7 +4,7 @@ function requireEnv(name: string) {
   const value = process.env[name];
 
   if (!value) {
-    throw new Error(`${name} is missing. Add it to your Vercel environment variables.`);
+    throw new Error(`${name} is missing.`);
   }
 
   return value;
