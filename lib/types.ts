@@ -105,10 +105,16 @@ export type IdeaRecord = DesignIdea & {
 export type BenchmarkReference = {
   title: string;
   image_url?: string | null;
+  thumbnail_url?: string | null;
+  source_url?: string | null;
+  source_platform?: BenchmarkPlatform;
   image_query: string;
   justification: string;
   score: number;
+  tags?: string[];
 };
+
+export type BenchmarkPlatform = "pinterest" | "serpapi_pinterest" | "bing_pinterest" | "fallback";
 
 export type BenchmarkPayload = {
   summary: string;
@@ -128,11 +134,48 @@ export type BenchmarkRecord = {
   created_at: string;
 };
 
+export type BenchmarkResultRecord = {
+  id: string;
+  project_id: string;
+  idea_id: string | null;
+  title: string;
+  source_platform: BenchmarkPlatform;
+  image_url: string | null;
+  thumbnail_url: string | null;
+  source_url: string | null;
+  image_query: string;
+  justification: string;
+  relevance_score: number;
+  tags: string[];
+  is_external: boolean;
+  created_at: string;
+};
+
+export type BenchmarkQueryRecord = {
+  id: string;
+  project_id: string;
+  idea_id: string | null;
+  query: string;
+  platform: BenchmarkPlatform;
+  status: string;
+  created_at: string;
+};
+
 export type PlanPayload = {
   plan_title: string;
   concept_svg: string;
   realistic_image_prompt: string;
   zones: string[];
+  zone_proposals?: Array<{
+    zone_name: string;
+    texture: string;
+    vegetation: string;
+    material: string;
+    furniture: string;
+    lighting: string;
+    intention: string;
+    image_prompt: string;
+  }>;
   materials: string[];
   planting: string[];
   material_legend: string[];
@@ -151,5 +194,48 @@ export type PlanRecord = {
   realistic_image_prompt: string | null;
   is_demo?: boolean | null;
   demo_reason?: string | null;
+  created_at: string;
+};
+
+export type MasterPlanRecord = {
+  id: string;
+  project_id: string;
+  title: string | null;
+  file_url: string;
+  storage_path: string;
+  width: number | null;
+  height: number | null;
+  mime_type?: string | null;
+  created_at: string;
+};
+
+export type PlanZoneRecord = {
+  id: string;
+  project_id: string;
+  master_plan_id: string;
+  name: string;
+  zone_type: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  polygon: unknown;
+  linked_site_image_id: string | null;
+  linked_idea_id: string | null;
+  linked_generated_image_url: string | null;
+  notes: string | null;
+  texture_instruction: string | null;
+  created_at: string;
+};
+
+export type GeneratedSpaceImageRecord = {
+  id: string;
+  project_id: string;
+  idea_id: string | null;
+  site_image_id: string | null;
+  zone_id: string | null;
+  prompt: string | null;
+  image_url: string | null;
+  status: string | null;
   created_at: string;
 };

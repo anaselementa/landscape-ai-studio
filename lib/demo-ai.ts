@@ -291,6 +291,7 @@ export async function insertWithOptionalDemoColumns(
       selected_idea_id: _selectedIdeaId,
       concept_svg: _conceptSvg,
       realistic_image_prompt: _prompt,
+      master_plan_id: _masterPlanId,
       spaces_concerned: _spaces,
       spatial_moves: _moves,
       preserved_elements: _preserved,

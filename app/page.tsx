@@ -29,10 +29,10 @@ export default async function HomePage() {
     <div className="space-y-8">
       <header className="grid gap-6 border-b border-[#ded8cc] pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="max-w-3xl">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#315f43]">V0.3</p>
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#315f43]">V0.4</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Landscape AI Studio</h1>
           <p className="mt-4 text-base leading-7 text-[#5f675f]">
-            Analyse de site, SWOT, 3 idees, selection d'une piste, benchmark visuel et plan texture conceptuel.
+            Analyse de site, SWOT, idees, benchmark Pinterest-first, plan DWG image, zones et rapport PDF.
           </p>
         </div>
         <Link className="btn-primary w-full sm:w-auto" href="/projects/new">Nouveau projet</Link>
@@ -63,7 +63,7 @@ export default async function HomePage() {
         )) : (
           <div className="card p-6 sm:col-span-2 xl:col-span-3">
             <h2 className="text-xl font-semibold">Aucun projet pour le moment</h2>
-            <p className="mt-2 text-sm leading-6 text-[#5f675f]">Cree un projet pour tester le workflow V0.3 complet.</p>
+            <p className="mt-2 text-sm leading-6 text-[#5f675f]">Cree un projet pour tester le workflow V0.4 complet.</p>
           </div>
         )}
       </section>

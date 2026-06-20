@@ -11,39 +11,37 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   try {
     const { id: projectId } = await params;
     const supabase = getSupabaseAdmin();
-    const [{ data: project, error: projectError }, { data: analysis }, { data: selectedIdea }, { data: benchmark }] = await Promise.all([
+    const [{ data: project, error: projectError }, { data: analysis }, { data: selectedIdea }] = await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("analyses").select("*").eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("ideas").select("*").eq("project_id", projectId).eq("selected", true).maybeSingle(),
-      supabase.from("benchmarks").select("*").eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      supabase.from("ideas").select("*").eq("project_id", projectId).eq("selected", true).maybeSingle()
     ]);
+
     if (projectError || !project) return NextResponse.json({ error: "Projet introuvable." }, { status: 404 });
     if (!selectedIdea) return NextResponse.json({ error: "Selectionne une idee avant le plan." }, { status: 400 });
 
     let plan: PlanPayload;
     let demoReason: string | null = null;
+
     try {
-      const prompt = `Genere un plan texture V0.3 pour l'idee selectionnee.
-Le SVG conceptuel est construit par l'app, mais tes listes doivent aider a representer: entree, jardin piscine, sortie/passage, terrasse, masses vegetales.
-Le plan doit s'adapter clairement a l'idee selectionnee.
+      const prompt = `Genere un plan texture conceptuel pour l'idee selectionnee.
 Projet: ${JSON.stringify(project)}
 Analyse: ${JSON.stringify(analysis?.analysis_json || {})}
 Idee selectionnee: ${JSON.stringify(selectedIdea)}
-Benchmark: ${JSON.stringify(benchmark?.benchmark_json || {})}
-Retourne uniquement JSON {"plan_title":"","realistic_image_prompt":"","zones":[""],"materials":[""],"planting":[""],"material_legend":[""],"planting_legend":[""],"validation_notes":[""],"non_metric_warning":"Schéma conceptuel, non métrique"}.
+Retourne uniquement JSON {"plan_title":"","realistic_image_prompt":"","zones":[""],"materials":[""],"planting":[""],"material_legend":[""],"planting_legend":[""],"validation_notes":[""],"non_metric_warning":"Schéma conceptuel, non métrique"}.`;
 
-Contraintes:
-- realistic_image_prompt doit etre en francais, tres exploitable pour un generateur d'image;
-- decris une vue aerienne ou axonometrie realiste de jardin de villa;
-- inclus entree, jardin piscine, sortie/passage, terrasse, masses vegetales, materiaux, vegetation, mobilier, lumiere;
-- ajoute la mention exacte "Schéma conceptuel, non métrique" dans non_metric_warning.`;
-      const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
+      const response = await getOpenAI().responses.create({
+        model: OPENAI_TEXT_MODEL,
+        input: prompt,
+        text: { format: { type: "json_object" } }
+      } as any);
       const parsed = parseJsonResponse<Omit<PlanPayload, "concept_svg">>(response.output_text);
       plan = {
         plan_title: parsed.plan_title || selectedIdea.title,
-        concept_svg: buildConceptSvg(selectedIdea.title),
+        concept_svg: buildConceptSvg(selectedIdea.title, selectedIdea.intervention_level),
         realistic_image_prompt: parsed.realistic_image_prompt || "",
         zones: asStringArray(parsed.zones),
+        zone_proposals: [],
         materials: asStringArray(parsed.materials),
         planting: asStringArray(parsed.planting),
         material_legend: asStringArray(parsed.material_legend),
@@ -67,6 +65,7 @@ Contraintes:
       is_demo: Boolean(demoReason),
       demo_reason: demoReason
     }, "id");
+
     if (error) throw error;
     return NextResponse.json({ ok: true, plan_id: data.id, plan, demoMode: Boolean(demoReason), demoReason });
   } catch (error) {

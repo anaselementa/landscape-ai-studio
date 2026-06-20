@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AddPlanZoneForm } from "@/components/add-plan-zone-form";
 import { BenchmarkCard } from "@/components/benchmark-card";
+import { MasterPlanUploadForm } from "@/components/master-plan-upload-form";
+import { PlanTextureButton } from "@/components/plan-texture-button";
 import { ProjectAiActions } from "@/components/project-ai-actions";
 import { SelectIdeaButton } from "@/components/select-idea-button";
 import { UploadPhotosForm } from "@/components/upload-photos-form";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import type { AnalysisRecord, BenchmarkRecord, IdeaRecord, PlanRecord, Project, SiteImage, SwotRecord } from "@/lib/types";
+import type { AnalysisRecord, BenchmarkResultRecord, IdeaRecord, MasterPlanRecord, PlanRecord, PlanZoneRecord, Project, SiteImage, SwotRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,22 +26,28 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     notFound();
   }
 
-  const [{ data: images }, { data: analyses }, { data: swots }, { data: ideas }, { data: benchmarks }, { data: plans }] = await Promise.all([
+  const [{ data: images }, { data: analyses }, { data: swots }, { data: ideas }, { data: benchmarkResults }, { data: plans }, { data: masterPlans }] = await Promise.all([
     supabase.from("site_images").select("*").eq("project_id", id).order("created_at", { ascending: false }),
     supabase.from("analyses").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1),
     supabase.from("swots").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1),
     supabase.from("ideas").select("*").eq("project_id", id).order("created_at", { ascending: false }),
-    supabase.from("benchmarks").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1),
-    supabase.from("plans").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1)
+    supabase.from("benchmark_results").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(8),
+    supabase.from("plans").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1),
+    supabase.from("master_plans").select("*").eq("project_id", id).order("created_at", { ascending: false }).limit(1)
   ]);
 
   const currentProject = project as Project;
   const latestAnalysis = (analyses?.[0] || null) as AnalysisRecord | null;
   const latestSwot = (swots?.[0] || null) as SwotRecord | null;
   const projectIdeas = (ideas || []) as IdeaRecord[];
-  const latestBenchmark = (benchmarks?.[0] || null) as BenchmarkRecord | null;
+  const benchmarkItems = (benchmarkResults || []) as BenchmarkResultRecord[];
   const latestPlan = (plans?.[0] || null) as PlanRecord | null;
   const projectImages = (images || []) as SiteImage[];
+  const latestMasterPlan = (masterPlans?.[0] || null) as MasterPlanRecord | null;
+  const { data: planZones } = latestMasterPlan
+    ? await supabase.from("plan_zones").select("*").eq("master_plan_id", latestMasterPlan.id).order("created_at", { ascending: true })
+    : { data: [] };
+  const zones = (planZones || []) as PlanZoneRecord[];
   const selectedIdea = projectIdeas.find((idea) => idea.selected || idea.id === currentProject.selected_idea_id) || null;
 
   return (
@@ -60,8 +69,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           ) : null}
         </div>
         <div className="card h-fit p-5">
-          <p className="mb-3 text-sm font-semibold">Actions IA V0.3</p>
+          <p className="mb-3 text-sm font-semibold">Actions IA V0.4</p>
           <ProjectAiActions projectId={id} hasAnalysis={Boolean(latestAnalysis)} hasSelectedIdea={Boolean(selectedIdea)} />
+          <Link className="btn-quiet mt-3 w-full" href={`/projects/${id}/report`}>Rapport / PDF</Link>
         </div>
       </header>
 
@@ -169,14 +179,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
       <section className="grid gap-5 xl:grid-cols-[1fr_1fr]">
         <article className="card p-5">
-          <SectionTitle title="Benchmark visuel" isDemo={Boolean(latestBenchmark?.is_demo)} />
-          {latestBenchmark?.benchmark_json.references?.length ? (
+          <SectionTitle title="Benchmark Pinterest" isDemo={benchmarkItems.some((item) => item.source_platform === "fallback")} />
+          {benchmarkItems.length ? (
             <div className="mt-4 grid gap-4">
-              {latestBenchmark.benchmark_json.references.map((reference) => (
-                <BenchmarkCard key={reference.title} reference={reference} />
+              {benchmarkItems.map((reference) => (
+                <BenchmarkCard key={reference.id} reference={reference} />
               ))}
             </div>
-          ) : <EmptyState text="Selectionne une idee, puis genere le benchmark visuel." />}
+          ) : <EmptyState text="Selectionne une idee, puis genere le benchmark Pinterest." />}
         </article>
 
         <article className="card p-5">
@@ -192,9 +202,69 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <DetailList title="Legende materiaux" items={latestPlan.plan_json.material_legend} />
               <DetailList title="Legende vegetation" items={latestPlan.plan_json.planting_legend} />
               <DetailList title="Validation" items={latestPlan.plan_json.validation_notes} />
+              {latestPlan.plan_json.zone_proposals?.length ? (
+                <div>
+                  <h3 className="font-semibold">Habillage zone par zone</h3>
+                  <div className="mt-3 grid gap-3">
+                    {latestPlan.plan_json.zone_proposals.map((zone) => (
+                      <div className="rounded-md border border-[#ded8cc] bg-[#fffefa] p-4 text-sm leading-6" key={zone.zone_name}>
+                        <p className="font-semibold text-[#315f43]">{zone.zone_name}</p>
+                        <p><span className="font-semibold">Texture:</span> {zone.texture}</p>
+                        <p><span className="font-semibold">Vegetation:</span> {zone.vegetation}</p>
+                        <p><span className="font-semibold">Materiau:</span> {zone.material}</p>
+                        <p><span className="font-semibold">Mobilier:</span> {zone.furniture}</p>
+                        <p><span className="font-semibold">Eclairage:</span> {zone.lighting}</p>
+                        <p><span className="font-semibold">Intention:</span> {zone.intention}</p>
+                        <p className="mt-2 text-[#6b7280]"><span className="font-semibold">Prompt zone:</span> {zone.image_prompt}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : <EmptyState text="Selectionne une idee, puis genere le plan texture et le prompt realiste." />}
         </article>
+      </section>
+
+      <section className="card p-5">
+        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold">Plan masse / DWG image</h2>
+            <p className="mt-1 text-sm leading-6 text-[#5f675f]">
+              Importe un DWG exporte en image ou PDF, puis ajoute des zones liees aux photos, a l'idee selectionnee et aux instructions de texture.
+            </p>
+          </div>
+          <PlanTextureButton projectId={id} disabled={!selectedIdea} />
+        </div>
+        <MasterPlanUploadForm projectId={id} />
+
+        {latestMasterPlan ? (
+          <div className="mt-6 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <h3 className="mb-3 font-semibold">{latestMasterPlan.title || "Plan importe"}</h3>
+              <PlanPreview masterPlan={latestMasterPlan} zones={zones} />
+            </div>
+            <div className="space-y-4">
+              <AddPlanZoneForm projectId={id} masterPlanId={latestMasterPlan.id} images={projectImages} selectedIdea={selectedIdea} />
+              {zones.length ? (
+                <div className="rounded-md border border-[#ded8cc] bg-[#fffefa] p-4">
+                  <h3 className="font-semibold">Zones creees</h3>
+                  <div className="mt-3 grid gap-3">
+                    {zones.map((zone) => (
+                      <div className="rounded-md bg-white p-3 text-sm" key={zone.id}>
+                        <p className="font-semibold">{zone.name}</p>
+                        <p className="text-[#5f675f]">{zone.zone_type || "zone"} - x {zone.x}% / y {zone.y}% / {zone.width} x {zone.height}%</p>
+                        {zone.texture_instruction ? <p className="mt-1 text-[#5f675f]">Texture: {zone.texture_instruction}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <EmptyState text="Aucun plan importe. La generation plan texture utilisera le schema conceptuel en fallback." />
+        )}
       </section>
     </div>
   );
@@ -249,4 +319,29 @@ function SwotBox({ title, items }: { title: string; items?: string[] }) {
 function DetailLine({ label, values }: { label: string; values?: string[] }) {
   if (!values?.length) return null;
   return <p className="mt-3 text-sm text-[#5f675f]"><span className="font-semibold text-[#17211b]">{label} :</span> {values.join(", ")}</p>;
+}
+
+function PlanPreview({ masterPlan, zones }: { masterPlan: MasterPlanRecord; zones: PlanZoneRecord[] }) {
+  const isPdf = masterPlan.file_url.toLowerCase().includes(".pdf") || masterPlan.mime_type === "application/pdf";
+
+  return (
+    <div className="relative overflow-hidden rounded-md border border-[#ded8cc] bg-white">
+      {isPdf ? (
+        <object className="h-[520px] w-full" data={masterPlan.file_url} type="application/pdf">
+          <a className="btn-secondary m-4" href={masterPlan.file_url} rel="noreferrer" target="_blank">Ouvrir le PDF</a>
+        </object>
+      ) : (
+        <img alt={masterPlan.title || "Plan masse"} className="w-full" src={masterPlan.file_url} />
+      )}
+      {!isPdf ? zones.map((zone) => (
+        <div
+          className="absolute border-2 border-[#315f43] bg-[#315f43]/20 p-1 text-xs font-bold text-[#17211b]"
+          key={zone.id}
+          style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%` }}
+        >
+          {zone.name}
+        </div>
+      )) : null}
+    </div>
+  );
 }

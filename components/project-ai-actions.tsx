@@ -3,14 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-type ActionName = "analyze" | "swot" | "ideas" | "references" | "plan";
+type ActionName = "analyze" | "swot" | "ideas" | "references" | "plan-texture";
 
 const labels: Record<ActionName, { idle: string; loading: string }> = {
   analyze: { idle: "Analyser", loading: "Analyse..." },
   swot: { idle: "SWOT", loading: "SWOT..." },
   ideas: { idle: "3 idees", loading: "Idees..." },
   references: { idle: "Benchmark", loading: "Benchmark..." },
-  plan: { idle: "Plan texture", loading: "Plan..." }
+  "plan-texture": { idle: "Plan texture", loading: "Plan..." }
 };
 
 export function ProjectAiActions({
@@ -51,7 +51,7 @@ export function ProjectAiActions({
       <div className="flex flex-wrap gap-2">
         {(Object.keys(labels) as ActionName[]).map((action) => {
           const needsAnalysis = action !== "analyze";
-          const needsIdea = action === "references" || action === "plan";
+          const needsIdea = action === "references" || action === "plan-texture";
           const disabled = Boolean(loading) || (needsAnalysis && !hasAnalysis) || (needsIdea && !hasSelectedIdea);
 
           return (
