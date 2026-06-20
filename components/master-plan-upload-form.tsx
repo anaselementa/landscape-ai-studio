@@ -22,11 +22,11 @@ export function MasterPlanUploadForm({ projectId }: { projectId: string }) {
     setLoading(false);
 
     if (!response.ok) {
-      setMessage(data.error || "Upload du plan impossible.");
+      setMessage(formatApiMessage(data, "Upload du plan impossible."));
       return;
     }
 
-    setMessage("Plan importe.");
+    setMessage(`Plan importe: ${data.master_plan?.title || "plan masse"}.`);
     form.reset();
     router.refresh();
   }
@@ -45,4 +45,8 @@ export function MasterPlanUploadForm({ projectId }: { projectId: string }) {
       {message ? <p className="text-sm text-[#5f675f] lg:col-span-3">{message}</p> : null}
     </form>
   );
+}
+
+function formatApiMessage(data: any, fallback: string) {
+  return [data?.error || fallback, data?.details].filter(Boolean).join(" ");
 }

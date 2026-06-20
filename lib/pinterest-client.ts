@@ -18,7 +18,7 @@ export async function searchPinterestOfficial(query: string, limit = 6): Promise
   }
 
   const url = new URL("https://api.pinterest.com/v5/search/pins");
-  url.searchParams.set("query", query);
+  url.searchParams.set("query", query || "mediterranean villa garden");
   url.searchParams.set("page_size", String(Math.min(limit, 25)));
 
   const response = await fetch(url, {
@@ -30,7 +30,7 @@ export async function searchPinterestOfficial(query: string, limit = 6): Promise
   });
 
   if (!response.ok) {
-    throw new Error(`Pinterest search failed: ${response.status} ${await response.text()}`);
+    throw new Error(`Pinterest search failed: ${response.status} ${await safeResponseText(response)}`);
   }
 
   const payload = await response.json();
@@ -38,17 +38,26 @@ export async function searchPinterestOfficial(query: string, limit = 6): Promise
 
   return items.slice(0, limit).map((item: any, index: number) => {
     const media = item.media?.images || {};
-    const image = media["1200x"]?.url || media["600x"]?.url || media.original?.url || null;
+    const image = media["1200x"]?.url || media["600x"]?.url || media.original?.url || media.orig?.url || null;
     const thumbnail = media["400x300"]?.url || media["150x150"]?.url || image;
+    const pinUrl = item.id ? `https://www.pinterest.com/pin/${item.id}/` : null;
 
     return {
       title: item.title || item.description || `Pinterest reference ${index + 1}`,
       source_platform: "pinterest",
       image_url: image,
       thumbnail_url: thumbnail,
-      source_url: item.link || item.url || null,
+      source_url: item.url || pinUrl || item.link || null,
       image_query: query,
       position: index + 1
     };
   });
+}
+
+async function safeResponseText(response: Response) {
+  try {
+    return (await response.text()).slice(0, 500);
+  } catch {
+    return "";
+  }
 }

@@ -189,6 +189,7 @@ export type PlanRecord = {
   project_id: string;
   analysis_id: string | null;
   selected_idea_id: string | null;
+  master_plan_id?: string | null;
   plan_json: PlanPayload;
   concept_svg: string | null;
   realistic_image_prompt: string | null;

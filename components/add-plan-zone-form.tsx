@@ -47,7 +47,7 @@ export function AddPlanZoneForm({
     setLoading(false);
 
     if (!response.ok) {
-      setMessage(data.error || "Zone impossible a creer.");
+      setMessage(formatApiMessage(data, "Zone impossible a creer."));
       return;
     }
 
@@ -103,6 +103,10 @@ export function AddPlanZoneForm({
       {message ? <p className="text-sm text-[#5f675f]">{message}</p> : null}
     </form>
   );
+}
+
+function formatApiMessage(data: any, fallback: string) {
+  return [data?.error || fallback, data?.details].filter(Boolean).join(" ");
 }
 
 function NumberField({ name, label, value }: { name: string; label: string; value: number }) {

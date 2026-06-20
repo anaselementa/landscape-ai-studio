@@ -16,11 +16,11 @@ export function PlanTextureButton({ projectId, disabled }: { projectId: string; 
     setLoading(false);
 
     if (!response.ok) {
-      setMessage(data.error || "Plan texture impossible.");
+      setMessage([data.error || "Plan texture impossible.", data.details].filter(Boolean).join(" "));
       return;
     }
 
-    setMessage(data.demoMode ? "Plan demo sauvegarde." : "Plan texture sauvegarde.");
+    setMessage(data.demoMode ? `Plan demo sauvegarde (${data.zones_count || 0} zone(s)).` : `Plan texture sauvegarde (${data.zones_count || 0} zone(s)).`);
     router.refresh();
   }
 

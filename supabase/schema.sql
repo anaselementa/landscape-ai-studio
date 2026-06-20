@@ -196,6 +196,20 @@ alter table public.plans add column if not exists master_plan_id uuid;
 alter table public.plans add column if not exists concept_svg text;
 alter table public.plans add column if not exists realistic_image_prompt text;
 
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'plans_master_plan_id_fkey'
+  ) then
+    alter table public.plans
+    add constraint plans_master_plan_id_fkey
+    foreign key (master_plan_id)
+    references public.master_plans(id)
+    on delete set null;
+  end if;
+end $$;
+
 create index if not exists site_images_project_id_idx on public.site_images(project_id);
 create index if not exists analyses_project_id_created_at_idx on public.analyses(project_id, created_at desc);
 create index if not exists swots_project_id_created_at_idx on public.swots(project_id, created_at desc);

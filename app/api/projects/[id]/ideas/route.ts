@@ -37,7 +37,13 @@ Retourne uniquement JSON {"ideas":[{"title":"","description":"","intervention_le
 Contraintes:
 - les trois intervention_level doivent etre exactement light, medium, strong;
 - precise ce qui est conserve et ce qui est transforme;
-- cite les espaces concernes avec les memes noms que dans l'analyse.`;
+- cite les espaces concernes avec les memes noms que dans l'analyse;
+- light = intervention sobre: conserver les sols et structures, clarifier les seuils, ajouter plantations/eclairage/mobilier ponctuels;
+- medium = intervention de recomposition partielle: creer une vraie terrasse ou sequence piscine, reprendre certains sols, densifier les masses vegetales;
+- strong = transformation ambitieuse: redessiner les circulations, unifier les sols, structurer plusieurs pieces de jardin et assumer un chantier plus lourd;
+- chaque idee doit avoir une logique spatiale differente, pas seulement plus ou moins de budget;
+- donne au moins 4 gestes spatiaux, 4 vegetaux, 3 materiaux, 2 elements de mobilier et 2 intentions lumineuses par idee;
+- les descriptions doivent parler de l'usage, du confort climatique, de l'entretien et de l'effet visuel client.`;
       const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);
       parsedIdeas = parseJsonResponse<{ ideas: DesignIdea[] }>(response.output_text).ideas || [];
     } catch (openAiError) {

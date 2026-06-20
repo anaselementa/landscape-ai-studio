@@ -32,7 +32,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       location: project.location,
       ideaTitle: selectedIdea?.title,
       interventionLevel: selectedIdea?.intervention_level,
-      spaces: selectedIdea?.spaces_concerned || analysis?.analysis_json?.existing_elements || []
+      spaces: selectedIdea?.spaces_concerned || extractSpacesFromAnalysis(analysis?.analysis_json)
     };
 
     const queries = await getPinterestQueries({
@@ -43,11 +43,30 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       fallback: defaultPinterestQueries(querySeed)
     });
 
-    const search = await searchBenchmarkImages(queries, 3);
-    const platform = search.platform;
-    const fallbackBenchmark = demoBenchmark(project, selectedIdea);
+    const search = await searchBenchmarkImages(queries, 4);
+    const externalConfigured = search.configuredProviders.length > 0;
     const externalResults = search.results.slice(0, 8);
 
+    if (externalConfigured && !externalResults.length) {
+      await supabase.from("benchmark_queries").insert(
+        queries.map((query) => ({
+          project_id: projectId,
+          idea_id: selectedIdea?.id || null,
+          query,
+          platform: search.attemptedProviders[search.attemptedProviders.length - 1] || search.configuredProviders[0],
+          status: `external_failed: ${search.errors.join(" | ").slice(0, 900)}`
+        }))
+      );
+
+      return NextResponse.json({
+        error: "Benchmark externe configure mais aucun resultat exploitable n'a ete retourne.",
+        details: search.errors.join(" | ") || "Provider configure sans resultat.",
+        configuredProviders: search.configuredProviders,
+        attemptedProviders: search.attemptedProviders
+      }, { status: 502 });
+    }
+
+    const fallbackBenchmark = demoBenchmark(project, selectedIdea);
     const rows = externalResults.length
       ? externalResults.map((result, index) => ({
           project_id: projectId,
@@ -58,9 +77,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
           thumbnail_url: validUrlOrNull(result.thumbnail_url),
           source_url: validUrlOrNull(result.source_url),
           image_query: result.image_query,
-          justification: buildJustification(project, selectedIdea, result.image_query),
-          relevance_score: Math.max(60, Math.min(98, 94 - index * 3)),
-          tags: buildTags(project, selectedIdea),
+          justification: buildJustification(project, selectedIdea, analysis?.analysis_json, result.image_query, result.title),
+          relevance_score: Math.max(65, Math.min(98, 96 - index * 3)),
+          tags: buildTags(project, selectedIdea, analysis?.analysis_json),
           is_external: true
         }))
       : fallbackBenchmark.references.map((reference, index) => ({
@@ -74,7 +93,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
           image_query: reference.image_query,
           justification: reference.justification,
           relevance_score: asNumber(reference.score, 75) - index,
-          tags: buildTags(project, selectedIdea),
+          tags: buildTags(project, selectedIdea, analysis?.analysis_json),
           is_external: false
         }));
 
@@ -83,8 +102,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         project_id: projectId,
         idea_id: selectedIdea?.id || null,
         query,
-        platform,
-        status: externalResults.length ? "results_found" : "fallback_moodboard"
+        platform: externalResults.length ? search.platform : "fallback",
+        status: externalResults.length ? "results_found" : "fallback_no_provider_configured"
       }))
     );
 
@@ -95,7 +114,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json({
       ok: true,
-      platform,
+      platform: externalResults.length ? search.platform : "fallback",
+      configuredProviders: search.configuredProviders,
+      attemptedProviders: search.attemptedProviders,
       results: data,
       fallback: !externalResults.length,
       errors: search.errors
@@ -114,12 +135,21 @@ async function getPinterestQueries(input: {
   fallback: string[];
 }) {
   try {
-    const prompt = `Genere 5 a 8 requetes de recherche image orientees Pinterest pour benchmark paysage.
-Chaque requete doit commencer par site:pinterest.com et etre adaptee au style, climat, espaces detectes et idee selectionnee.
-Projet: ${JSON.stringify(input.project)}
-Analyse: ${JSON.stringify(input.analysis?.analysis_json || {})}
+    const prompt = `Genere 6 a 8 requetes de recherche image pour un benchmark Pinterest d'architecture paysagere.
+Chaque requete doit commencer par site:pinterest.com et cibler une intention visuelle differente.
+
+Contexte projet: ${JSON.stringify(input.project)}
+Analyse photo par photo: ${JSON.stringify(input.analysis?.analysis_json || {})}
 SWOT: ${JSON.stringify(input.swot || {})}
 Idee selectionnee: ${JSON.stringify(input.selectedIdea || {})}
+
+Exigences:
+- adapte les requetes aux espaces detectes: entree, terrasse, jardin piscine, sortie/passage, masses vegetales;
+- integre le niveau d'intervention de l'idee selectionnee;
+- vise des references realistes de villa mediterraneenne, pas des images decoratives generales;
+- ajoute des mots de materiaux, vegetation, mobilier et lumiere quand c'est pertinent;
+- evite les requetes trop larges comme "garden design".
+
 Retourne uniquement JSON {"queries":["site:pinterest.com ..."]}.`;
 
     const response = await getOpenAI().responses.create({
@@ -129,7 +159,7 @@ Retourne uniquement JSON {"queries":["site:pinterest.com ..."]}.`;
     } as any);
     const parsed = parseJsonResponse<QueryPayload>(response.output_text);
     const queries = asStringArray(parsed.queries)
-      .map((query) => (query.includes("site:pinterest.com") ? query : `site:pinterest.com ${query}`))
+      .map((query) => (query.toLowerCase().includes("site:pinterest.com") ? query : `site:pinterest.com ${query}`))
       .slice(0, 8);
 
     return queries.length >= 5 ? queries : input.fallback;
@@ -148,18 +178,28 @@ function validUrlOrNull(value?: string | null) {
   }
 }
 
-function buildJustification(project: any, selectedIdea: any, query: string) {
-  const idea = selectedIdea?.title ? ` l'idee "${selectedIdea.title}"` : " la direction paysagere";
-  const style = project.style ? `, le style ${project.style}` : "";
-  return `Reference utile pour nourrir${idea}${style}; requete ciblee Pinterest: ${query}.`;
+function buildJustification(project: any, selectedIdea: any, analysis: any, query: string, title: string) {
+  const idea = selectedIdea?.title ? `l'idee "${selectedIdea.title}"` : "la direction paysagere";
+  const level = selectedIdea?.intervention_level ? `niveau ${selectedIdea.intervention_level}` : "niveau a preciser";
+  const spaces = (selectedIdea?.spaces_concerned || extractSpacesFromAnalysis(analysis)).slice(0, 4).join(", ");
+  const style = project.style ? `Style vise: ${project.style}. ` : "";
+  return `${style}Reference "${title}" retenue pour nourrir ${idea} (${level}) sur ${spaces || "les espaces principaux"}; requete ciblee: ${query}.`;
 }
 
-function buildTags(project: any, selectedIdea: any) {
+function buildTags(project: any, selectedIdea: any, analysis: any) {
   return [
     project.style,
     project.location,
     selectedIdea?.intervention_level,
-    ...(selectedIdea?.spaces_concerned || []),
+    ...(selectedIdea?.spaces_concerned || extractSpacesFromAnalysis(analysis)),
     ...(selectedIdea?.concept_keywords || [])
   ].filter(Boolean);
+}
+
+function extractSpacesFromAnalysis(analysis: any): string[] {
+  const photoSpaces = Array.isArray(analysis?.photo_analyses)
+    ? analysis.photo_analyses.map((photo: any) => photo.probable_space).filter(Boolean)
+    : [];
+  const existing = Array.isArray(analysis?.existing_elements) ? analysis.existing_elements : [];
+  return Array.from(new Set([...photoSpaces, ...existing])).slice(0, 8);
 }

@@ -21,7 +21,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let swot: SwotPayload;
     let demoReason: string | null = null;
     try {
-      const prompt = `Genere un SWOT paysager decisionnel, concret et priorise pour un architecte paysagiste.
+      const prompt = `Genere un SWOT paysager decisionnel, concret et priorise pour un architecte paysagiste senior.
 Projet: ${project.name}
 Analyse: ${JSON.stringify(analysis.analysis_json)}
 
@@ -30,6 +30,12 @@ Regles strictes:
 - Les faiblesses doivent etre directement liees aux photos, aux espaces detectes et a l'etat visible du site.
 - Les menaces doivent concerner uniquement: climat, arrosage, entretien, ombrage, materiaux, contraintes d'execution, vieillissement de l'existant.
 - Chaque point doit etre operationnel et utile pour arbitrer un amenagement.
+- Chaque item doit citer au moins un espace detecte quand c'est possible: entree, terrasse, jardin piscine, sortie/passage, masses vegetales.
+- Les forces doivent identifier ce qui peut etre conserve ou valorise.
+- Les faiblesses doivent decrire un probleme de conception ou d'usage visible, pas un manque abstrait.
+- Les opportunites doivent suggerer une direction spatiale claire.
+- Les menaces doivent expliquer le risque concret pour le chantier, la durabilite ou l'usage.
+- Produis 5 a 7 items par categorie, avec formulation precise et non marketing.
 
 Retourne uniquement JSON {"strengths":[""],"weaknesses":[""],"opportunities":[""],"threats":[""]}.`;
       const response = await getOpenAI().responses.create({ model: OPENAI_TEXT_MODEL, input: prompt, text: { format: { type: "json_object" } } } as any);

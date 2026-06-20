@@ -32,9 +32,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         image_url: image.public_url
       }));
       const prompt = `
-Tu es un architecte paysagiste senior. Analyse ce projet de villa a partir des photos fournies.
-Tu dois analyser chaque photo separement avant de produire la synthese globale.
+Tu es un architecte paysagiste senior et directeur de conception. Produis un diagnostic de site exploitable avant esquisse.
+Analyse ce projet de villa a partir des photos fournies. Tu dois analyser chaque photo separement avant de produire la synthese globale.
 Chaque observation doit etre specifique aux photos: evite les phrases generiques, les suppositions non visibles et les conseils vagues.
+Quand un element n'est pas visible, ecris "non visible" plutot que d'inventer.
 
 Projet:
 - Nom: ${project.name}
@@ -74,10 +75,13 @@ Retourne uniquement ce JSON:
 }
 
 Contraintes de qualite:
-- une entree dans photo_analyses par photo fournie;
-- nomme les espaces detectes: entree, jardin piscine, terrasse, sortie/passage, massif, allee, etc.;
-- les problemes doivent etre visibles ou directement deduits de l'etat du site;
-- la synthese globale doit reprendre les noms d'espaces detectes.`;
+- une entree dans photo_analyses par photo fournie, dans le meme ordre que l'index;
+- pour chaque photo, fournis au moins 4 observations concretes dans elements, materiaux, problemes, opportunites et interventions;
+- nomme les espaces detectes: entree, jardin piscine, terrasse, sortie/passage, massif, allee, cour technique, seuil, etc.;
+- decris aussi les relations spatiales: seuils, transitions, vues, zones d'ombre, sols, limites, circulations;
+- les problemes doivent etre visibles ou directement deduits de l'etat du site: surchauffe, glissance, manque d'ombrage, confusion de circulation, arrosage, vieillissement des materiaux;
+- les interventions recommandees doivent etre actionnables pour un architecte paysagiste;
+- la synthese globale doit etre plus longue qu'une phrase et reprendre les noms d'espaces detectes.`;
 
       const response = await getOpenAI().responses.create({
         model: OPENAI_TEXT_MODEL,

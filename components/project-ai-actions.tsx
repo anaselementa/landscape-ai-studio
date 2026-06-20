@@ -38,11 +38,15 @@ export function ProjectAiActions({
     setLoading(null);
 
     if (!response.ok) {
-      setError(data.error || "Action impossible.");
+      setError([data.error || "Action impossible.", data.details].filter(Boolean).join(" "));
       return;
     }
 
-    setMessage(data.demoMode ? "Mode demo IA: resultat demo sauvegarde." : "Resultat sauvegarde.");
+    if (action === "references" && data.platform) {
+      setMessage(data.fallback ? `Benchmark fallback sauvegarde (${data.platform}).` : `Benchmark ${data.platform} sauvegarde.`);
+    } else {
+      setMessage(data.demoMode ? "Mode demo IA: resultat demo sauvegarde." : "Resultat sauvegarde.");
+    }
     router.refresh();
   }
 
